@@ -101,7 +101,40 @@ def load_model():
             print(f"Current working directory: {os.getcwd()}")
             print(f"Files in current directory: {os.listdir('.')}")
             
-            model = MobileNetV4_Res2TSM('mobilenetv4_conv_blur_medium').to(DEVICE)
+            # DEBUG: List all available MobileNetV4 models
+            print("\n=== DEBUGGING: Available MobileNetV4 models ===")
+            available_models = timm.list_models('mobilenetv4*')
+            for model_name in available_models:
+                print(f"  - {model_name}")
+            print(f"Total MobileNetV4 models found: {len(available_models)}")
+            print("=== END DEBUG ===\n")
+            
+            # Try different model names in order of preference
+            model_candidates = [
+                'mobilenetv4_conv_blur_medium.e500_r224_in1k',
+                'mobilenetv4_conv_blur_medium',
+                'mobilenetv4_conv_medium.e500_r224_in1k', 
+                'mobilenetv4_conv_medium',
+                'mobilenetv4_conv_small.e500_r224_in1k',
+                'mobilenetv4_conv_small'
+            ]
+            
+            model_key = None
+            for candidate in model_candidates:
+                if candidate in available_models:
+                    model_key = candidate
+                    print(f"Using model: {model_key}")
+                    break
+            
+            if model_key is None:
+                # If no exact match, use the first available mobilenetv4 model
+                if available_models:
+                    model_key = available_models[0]
+                    print(f"No exact match found, using first available: {model_key}")
+                else:
+                    raise RuntimeError("No MobileNetV4 models available in this timm version")
+            
+            model = MobileNetV4_Res2TSM(model_key).to(DEVICE)
             model_path = "final_best_mobilenetv4_conv_blur_medium_res2tsm_tb_classifier.pth"
             
             print(f"Loading model from: {model_path}")
@@ -280,4 +313,4 @@ def process_coughs():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, use_reloader=True) 
+    app.run(debug=True, use_reloader=True)
