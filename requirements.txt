@@ -1,7 +1,7 @@
 flask==2.3.3
 numpy==1.26.4
 torch==2.7.1
-timm==0.9.12
+timm==0.9.13
 librosa==0.10.1
 soundfile==0.12.1
 gunicorn==21.2.0
