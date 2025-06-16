@@ -2,16 +2,8 @@ services:
   - type: web
     name: tb-cough-inference
     env: python
-    buildCommand: |
-      python3.8 -m pip install --upgrade pip setuptools wheel
-      python3.8 -m pip install poetry==2.1.3
-      poetry config virtualenvs.create false
-      poetry install --no-interaction --no-ansi
+    buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
-        value: 3.8.18
-      - key: POETRY_VERSION
-        value: 2.1.3
-      - key: PIP_NO_CACHE_DIR
-        value: "1" 
+        value: 3.8 

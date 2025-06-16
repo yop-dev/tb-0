@@ -1,4 +1,4 @@
-flask==3.0.2
+flask==2.3.3
 numpy==1.21.6
 torch==2.0.1
 timm==0.9.12
@@ -7,4 +7,5 @@ soundfile==0.12.1
 gunicorn==21.2.0
 scipy==1.7.3
 requests==2.31.0
-setuptools>=65.5.1 
+setuptools>=65.5.1
+wheel>=0.38.0 
