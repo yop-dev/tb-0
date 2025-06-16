@@ -17,6 +17,8 @@ from tkinter import ttk, filedialog, messagebox, scrolledtext
 import threading
 import queue
 import time
+import sounddevice as sd
+import soundfile as sf
 
 # Try importing librosa with fallback
 try:
@@ -250,6 +252,8 @@ class TBDetectionGUI:
         self.model = None
         self.audio_files = []
         self.results = []
+        self.recorded_coughs = []  # List of recorded cough file paths
+        self.required_coughs = 5
         
         # Threading
         self.processing_queue = queue.Queue()
@@ -314,6 +318,12 @@ class TBDetectionGUI:
         
         device_label = ttk.Label(info_frame, text=f"Device: {DEVICE}")
         device_label.grid(row=0, column=2, sticky=tk.W, padx=(30, 0))
+        
+        # Add Record Cough button
+        self.record_btn = ttk.Button(control_frame, text="Record Cough", command=self.record_cough, width=20)
+        self.record_btn.grid(row=2, column=0, pady=5, sticky=tk.W)
+        self.cough_count_label = ttk.Label(control_frame, text="Coughs recorded: 0")
+        self.cough_count_label.grid(row=2, column=1, sticky=tk.W, padx=(20, 0), pady=5)
         
         # MAIN RESULT DISPLAY - Very prominent
         result_frame = ttk.LabelFrame(main_frame, text="DETECTION RESULT", padding="20")
@@ -441,6 +451,8 @@ class TBDetectionGUI:
             
             # Clear previous results
             self.clear_results()
+            self.recorded_coughs = []  # Clear recorded coughs if files are selected
+            self.cough_count_label.configure(text="Coughs recorded: 0")
         
     def clear_results(self):
         """Clear previous results"""
@@ -450,17 +462,17 @@ class TBDetectionGUI:
         self.main_result_label.configure(text="NO ANALYSIS PERFORMED", foreground="gray")
         self.confidence_label.configure(text="", foreground="gray")
         self.export_btn.configure(state=tk.DISABLED)
+        self.recorded_coughs = []
+        self.cough_count_label.configure(text="Coughs recorded: 0")
         
     def process_files(self):
-        """Process selected audio files"""
+        if len(self.audio_files) < self.required_coughs:
+            messagebox.showerror("Error", f"Please record at least {self.required_coughs} coughs before analysis.")
+            return
         if not self.model:
             messagebox.showerror("Error", "Model not loaded yet!")
             return
             
-        if not self.audio_files:
-            messagebox.showerror("Error", "No files selected!")
-            return
-        
         self.process_btn.configure(state=tk.DISABLED)
         self.is_processing = True
         self.status_label.configure(text="Processing...", foreground="blue")
@@ -619,6 +631,30 @@ class TBDetectionGUI:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export results:\n{str(e)}")
             self.log_message(f"Export error: {str(e)}")
+
+    def record_cough(self):
+        duration = 2  # seconds per cough
+        fs = SR
+        cough_num = len(self.recorded_coughs) + 1
+        filename = f"recorded_cough_{cough_num}.wav"
+        self.log_message(f"Recording cough {cough_num}... Please cough into the microphone.")
+        try:
+            recording = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='float32')
+            sd.wait()
+            sf.write(filename, recording, fs)
+            self.recorded_coughs.append(filename)
+            self.cough_count_label.configure(text=f"Coughs recorded: {len(self.recorded_coughs)}")
+            self.log_message(f"Cough {cough_num} recorded.")
+            # Enable process button if enough coughs
+            if len(self.recorded_coughs) >= self.required_coughs:
+                self.process_btn.configure(state=tk.NORMAL if self.model else tk.DISABLED)
+                self.audio_files = self.recorded_coughs.copy()
+                self.file_count_label.configure(text=f"{len(self.audio_files)} coughs ready for analysis")
+            else:
+                self.process_btn.configure(state=tk.DISABLED)
+        except Exception as e:
+            self.log_message(f"Recording failed: {e}")
+            messagebox.showerror("Recording Error", f"Failed to record cough: {e}")
 
 if __name__ == "__main__":
     root = tk.Tk()

@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TB Cough Detection</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --success-color: #16a34a;
+            --danger-color: #dc2626;
+            --warning-color: #d97706;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif;
+            background-color: var(--gray-100);
+            color: var(--gray-900);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 1rem;
+        }
+
+        .header p {
+            color: var(--gray-700);
+            font-size: 1.1rem;
+        }
+
+        .controls {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        button { 
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        #recordButton {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        #recordButton:hover {
+            background-color: #1d4ed8;
+        }
+
+        #recordButton.recording {
+            background-color: var(--danger-color);
+            animation: pulse 1.5s infinite;
+        }
+
+        #processButton {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        #processButton:hover:not(:disabled) {
+            background-color: #15803d;
+        }
+
+        button:disabled {
+            background-color: var(--gray-300);
+            cursor: not-allowed;
+        }
+
+        .progress-container {
+            margin: 1.5rem 0;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background-color: var(--gray-200);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .cough-count {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.1rem;
+            color: var(--gray-700);
+            margin: 1rem 0;
+        }
+
+        .cough-count .count {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .result-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .summary {
+            background-color: var(--gray-100);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary h2 {
+            color: var(--gray-900);
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .summary-item {
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+        }
+
+        .summary-item h3 {
+            font-size: 0.875rem;
+            color: var(--gray-700);
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-item p {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .individual-results {
+            margin-top: 2rem;
+        }
+
+        .individual-results h2 {
+            color: var(--gray-900);
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .cough-result {
+            background: white;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            border-radius: 0.5rem;
+            border-left: 4px solid var(--gray-300);
+            transition: all 0.2s;
+        }
+
+        .cough-result:hover {
+            transform: translateX(4px);
+        }
+
+        .cough-result.positive {
+            border-left-color: var(--danger-color);
+        }
+
+        .cough-result.negative {
+            border-left-color: var(--success-color);
+        }
+
+        .cough-result h3 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .cough-result p {
+            color: var(--gray-700);
+            font-size: 0.875rem;
+        }
+
+        .confidence-bar {
+            height: 4px;
+            background-color: var(--gray-200);
+            border-radius: 2px;
+            margin-top: 0.5rem;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background-color: var(--primary-color);
+            transition: width 0.3s ease;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .recording-indicator {
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--danger-color);
+            font-weight: 500;
+            margin-top: 0.5rem;
+        }
+
+        .recording-indicator.active {
+            display: flex;
+        }
+
+        .recording-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--danger-color);
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>TB Cough Detection</h1>
+            <p>Record at least 5 coughs for accurate analysis</p>
+        </div>
+
+        <div class="controls">
+            <div class="button-group">
+                <button id="recordButton">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    Record Cough
+                </button>
+                <button id="processButton" disabled>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                    Process Coughs
+                </button>
+            </div>
+
+            <div class="recording-indicator">
+                <div class="recording-dot"></div>
+                Recording...
+            </div>
+
+            <div class="progress-container">
+                <div class="cough-count">
+                    <span>Coughs recorded:</span>
+                    <span class="count">0</span>
+                    <span>/ 5 required</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        let recordedCoughs = [];
+        const requiredCoughs = 5;
+        const recordButton = document.getElementById('recordButton');
+        const processButton = document.getElementById('processButton');
+        const recordingIndicator = document.querySelector('.recording-indicator');
+        const progressFill = document.querySelector('.progress-fill');
+        const coughCount = document.querySelector('.cough-count .count');
+
+        function updateProgress() {
+            const progress = (recordedCoughs.length / requiredCoughs) * 100;
+            progressFill.style.width = `${progress}%`;
+            coughCount.textContent = recordedCoughs.length;
+        }
+
+        recordButton.onclick = async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const mediaRecorder = new MediaRecorder(stream);
+                const audioChunks = [];
+
+                recordButton.classList.add('recording');
+                recordingIndicator.classList.add('active');
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    recordButton.classList.remove('recording');
+                    recordingIndicator.classList.remove('active');
+
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob);
+
+                    try {
+                        const response = await fetch('/record', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await response.json();
+                        recordedCoughs.push(data.filename);
+                        updateProgress();
+
+                        if (recordedCoughs.length >= requiredCoughs) {
+                            processButton.disabled = false;
+                        }
+                    } catch (error) {
+                        console.error('Error saving recording:', error);
+                    }
+                };
+
+                mediaRecorder.start();
+                setTimeout(() => mediaRecorder.stop(), 2000);
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                alert('Error accessing microphone. Please ensure you have granted microphone permissions.');
+            }
+        };
+
+        processButton.onclick = async () => {
+            processButton.disabled = true;
+            processButton.innerHTML = `
+                <svg class="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" stroke-dasharray="50" stroke-dashoffset="20"/>
+                </svg>
+                Processing...
+            `;
+
+            try {
+                console.log('Sending request to process coughs:', recordedCoughs);
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filenames: recordedCoughs })
+                });
+                
+                const data = await response.json();
+                console.log('Received response:', data);
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to process coughs');
+                }
+                
+                if (!data || !data.individual_results || !data.summary) {
+                    throw new Error('Invalid response format from server');
+                }
+                
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = `
+                    <div class="result-container">
+                        <div class="summary">
+                            <h2>Analysis Results</h2>
+                            <div class="summary-grid">
+                                <div class="summary-item">
+                                    <h3>Overall Result</h3>
+                                    <p style="color: ${data.summary.overall_result === 'TB POSITIVE' ? 'var(--danger-color)' : 'var(--success-color)'}">
+                                        ${data.summary.overall_result}
+                                    </p>
+                                </div>
+                                <div class="summary-item">
+                                    <h3>Total Coughs</h3>
+                                    <p>${data.summary.total_coughs}</p>
+                                </div>
+                                <div class="summary-item">
+                                    <h3>Positive Coughs</h3>
+                                    <p style="color: var(--danger-color)">${data.summary.positive_coughs}</p>
+                                </div>
+                                <div class="summary-item">
+                                    <h3>Negative Coughs</h3>
+                                    <p style="color: var(--success-color)">${data.summary.negative_coughs}</p>
+                                </div>
+                                <div class="summary-item">
+                                    <h3>Average Probability</h3>
+                                    <p>${(data.summary.average_probability * 100).toFixed(1)}%</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="individual-results">
+                            <h2>Individual Results</h2>
+                            ${data.individual_results.map(result => `
+                                <div class="cough-result ${result.probability >= 0.5 ? 'positive' : 'negative'}">
+                                    <h3>${result.result}</h3>
+                                    <p>Confidence: ${(result.confidence * 100).toFixed(1)}%</p>
+                                    <div class="confidence-bar">
+                                        <div class="confidence-fill" style="width: ${result.confidence * 100}%"></div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error processing coughs:', error);
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = `
+                    <div class="result-container">
+                        <div class="error-message" style="color: var(--danger-color); padding: 1rem; text-align: center;">
+                            <h3>Error Processing Coughs</h3>
+                            <p>${error.message}</p>
+                            <p style="font-size: 0.875rem; margin-top: 0.5rem;">Please try recording the coughs again.</p>
+                            <p style="font-size: 0.75rem; color: var(--gray-700); margin-top: 0.5rem;">
+                                If the error persists, please check the console for more details (F12).
+                            </p>
+                        </div>
+                    </div>
+                `;
+            } finally {
+                processButton.disabled = false;
+                processButton.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                    Process Coughs
+                `;
+            }
+        };
+    </script>
+</body>
+</html> 
