@@ -1,11 +1,10 @@
 flask==2.3.3
-numpy==1.21.6
-torch==2.0.1
+numpy==2.3.0
+torch==2.1.0
 timm==0.9.12
 librosa==0.10.1
 soundfile==0.12.1
 gunicorn==21.2.0
-scipy==1.7.3
+scipy==1.11.4
 requests==2.31.0
-setuptools>=65.5.1
-wheel>=0.38.0 
+wheel==0.42.0 
