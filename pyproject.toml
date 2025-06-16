@@ -9,7 +9,7 @@ description = "TB Cough Detection System"
 authors = ["Your Name <your.email@example.com>"]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.10"
+python = ">=3.11,<3.12"
 flask = "3.0.2"
 numpy = "1.24.3"
 torch = "2.1.0"
