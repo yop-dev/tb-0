@@ -10,6 +10,7 @@ import timm
 import traceback
 import sys
 from pathlib import Path
+import gc
 
 app = Flask(__name__)
 
@@ -89,71 +90,47 @@ class MobileNetV4_Res2TSM(nn.Module):
 
 # Initialize model
 model = None
+model_loaded = False
 
 def load_model():
-    global model
+    global model, model_loaded
+    if model_loaded:
+        return True
+        
     if model is None:
         try:
             print("Starting model loading...")
             print(f"Python version: {sys.version}")
             print(f"PyTorch version: {torch.__version__}")
             print(f"CUDA available: {torch.cuda.is_available()}")
-            print(f"Current working directory: {os.getcwd()}")
-            print(f"Files in current directory: {os.listdir('.')}")
             
-            # DEBUG: List all available MobileNetV4 models
-            print("\n=== DEBUGGING: Available MobileNetV4 models ===")
-            available_models = timm.list_models('mobilenetv4*')
-            for model_name in available_models:
-                print(f"  - {model_name}")
-            print(f"Total MobileNetV4 models found: {len(available_models)}")
-            print("=== END DEBUG ===\n")
+            # Memory optimization: set torch threads
+            torch.set_num_threads(1)
             
-            # Try different model names in order of preference
-            model_candidates = [
-                'mobilenetv4_conv_blur_medium.e500_r224_in1k',
-                'mobilenetv4_conv_blur_medium',
-                'mobilenetv4_conv_medium.e500_r224_in1k', 
-                'mobilenetv4_conv_medium',
-                'mobilenetv4_conv_small.e500_r224_in1k',
-                'mobilenetv4_conv_small'
-            ]
+            # Use the available model (from debugging we know it's mobilenetv4_conv_blur_medium)
+            model_key = 'mobilenetv4_conv_blur_medium'
+            print(f"Using model: {model_key}")
             
-            model_key = None
-            for candidate in model_candidates:
-                if candidate in available_models:
-                    model_key = candidate
-                    print(f"Using model: {model_key}")
-                    break
-            
-            if model_key is None:
-                # If no exact match, use the first available mobilenetv4 model
-                if available_models:
-                    model_key = available_models[0]
-                    print(f"No exact match found, using first available: {model_key}")
-                else:
-                    raise RuntimeError("No MobileNetV4 models available in this timm version")
-            
+            print("Creating model architecture...")
             model = MobileNetV4_Res2TSM(model_key).to(DEVICE)
-            model_path = "final_best_mobilenetv4_conv_blur_medium_res2tsm_tb_classifier.pth"
             
-            print(f"Loading model from: {model_path}")
+            model_path = "final_best_mobilenetv4_conv_blur_medium_res2tsm_tb_classifier.pth"
+            print(f"Loading model weights from: {model_path}")
+            
             if not os.path.exists(model_path):
                 print(f"Model file not found at: {model_path}")
                 return False
-                
-            print("Loading model state...")
-            state = torch.load(model_path, map_location=DEVICE)
+            
+            # Load with memory optimization
+            state = torch.load(model_path, map_location=DEVICE, weights_only=True)
             print("Model state loaded successfully")
             
             if 'state_dict' in state:
                 state_dict = state['state_dict']
-                print("Found state_dict in model state")
             elif 'model_state_dict' in state:
                 state_dict = state['model_state_dict']
             else:
                 state_dict = state
-                print("Using raw state as state_dict")
             
             # Remove 'module.' prefix if present
             if any(key.startswith('module.') for key in state_dict.keys()):
@@ -161,18 +138,25 @@ def load_model():
             
             print("Loading state dict into model...")
             model.load_state_dict(state_dict, strict=False)
-            print("State dict loaded successfully")
-            
             model.eval()
-            print("Model loaded and set to eval mode")
+            
+            # Force garbage collection
+            del state_dict, state
+            gc.collect()
+            
+            model_loaded = True
+            print("Model loaded successfully!")
             return True
             
         except Exception as e:
             print(f"Error loading model: {str(e)}")
-            print("Full traceback:")
             traceback.print_exc()
             return False
     return True
+
+# Preload model at startup
+print("Preloading model at startup...")
+load_model()
 
 @app.route('/')
 def home():
@@ -208,15 +192,16 @@ def record_cough():
 def process_coughs():
     try:
         print("Starting cough processing...")
-        if not load_model():
-            print("Model loading failed")
-            return jsonify({'error': 'Failed to load model'}), 500
+        if not model_loaded:
+            print("Model not loaded, attempting to load...")
+            if not load_model():
+                print("Model loading failed")
+                return jsonify({'error': 'Failed to load model'}), 500
 
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
 
-        # Handle both 'files' and 'filenames' keys
         files = data.get('files') or data.get('filenames')
         if not files:
             return jsonify({'error': 'No files provided'}), 400
@@ -226,6 +211,7 @@ def process_coughs():
 
         print(f"Processing {len(files)} files...")
         results = []
+        
         for file_path in files:
             try:
                 print(f"Processing file: {file_path}")
@@ -267,10 +253,13 @@ def process_coughs():
                 # Convert to RGB
                 rgb = np.stack([mel_db] * 3, axis=0)
                 
-                # Model inference
+                # Model inference with memory optimization
                 tensor = torch.tensor(rgb[None], dtype=torch.float32, device=DEVICE)
                 with torch.no_grad():
                     prob = model(tensor).squeeze().item()
+                
+                # Clean up tensors
+                del tensor, rgb, mel_db, mel
                 
                 results.append({
                     'filename': os.path.basename(file_path),
@@ -296,11 +285,14 @@ def process_coughs():
         
         print(f"Processing complete. Found {total_count} valid results, {positive_count} positive")
         
+        # Force garbage collection
+        gc.collect()
+        
         return jsonify({
             'individual_results': results,
             'summary': {
                 'total_coughs': total_count,
-                'positive_coughs': positive_count,
+                'positive_coughs': positive_count,  
                 'negative_coughs': total_count - positive_count,
                 'average_probability': avg_prob,
                 'overall_result': 'TB POSITIVE' if positive_count >= total_count/2 else 'TB NEGATIVE'
