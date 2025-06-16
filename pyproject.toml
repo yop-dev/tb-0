@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=65.5.1", "wheel>=0.38.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.poetry]
+name = "tb-cough-inference"
+version = "0.1.0"
+description = "TB Cough Detection System"
+authors = ["Your Name <your.email@example.com>"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.11"
+flask = "3.0.2"
+numpy = "1.24.3"
+torch = "2.1.0"
+timm = "0.9.12"
+librosa = "0.10.1"
+soundfile = "0.12.1"
+gunicorn = "21.2.0"
+scipy = "1.11.4"
+requests = "2.31.0" 

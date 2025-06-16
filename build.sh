@@ -2,8 +2,11 @@
 # exit on error
 set -o errexit
 
-# Install setuptools first
-pip install --upgrade pip setuptools wheel
+# Install Poetry
+curl -sSL https://install.python-poetry.org | python3 -
 
-# Then install the rest of the requirements
-pip install -r requirements.txt 
+# Configure Poetry to use system Python
+poetry config virtualenvs.create false
+
+# Install dependencies using Poetry
+poetry install --no-interaction --no-ansi 
