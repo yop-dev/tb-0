@@ -2,8 +2,14 @@ services:
   - type: web
     name: tb-cough-inference
     env: python
-    buildCommand: chmod +x build.sh && ./build.sh
+    buildCommand: |
+      python -m pip install --upgrade pip
+      python -m pip install poetry
+      poetry config virtualenvs.create false
+      poetry install --no-interaction --no-ansi
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
-        value: 3.10.14 
+        value: 3.10.14
+      - key: POETRY_VERSION
+        value: 2.1.3 
