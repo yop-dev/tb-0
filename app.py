@@ -114,7 +114,7 @@ def load_model():
             print("Creating model architecture...")
             model = MobileNetV4_Res2TSM(model_key).to(DEVICE)
             
-            model_path = "fmobilenetv4_res2tsm_float16.pth"
+            model_path = "final_best_mobilenetv4_conv_blur_medium_res2tsm_tb_classifier.pth"
             print(f"Loading model weights from: {model_path}")
             
             if not os.path.exists(model_path):
@@ -138,9 +138,8 @@ def load_model():
             
             print("Loading state dict into model...")
             model.load_state_dict(state_dict, strict=False)
-            if DEVICE.type == "cuda":
-                 model = model.half()
-
+            model.eval()
+            
             # Force garbage collection
             del state_dict, state
             gc.collect()
@@ -255,8 +254,7 @@ def process_coughs():
                 rgb = np.stack([mel_db] * 3, axis=0)
                 
                 # Model inference with memory optimization
-                dtype = torch.float16 if DEVICE.type == "cuda" else torch.float32
-                tensor = torch.tensor(rgb[None], dtype=dtype, device=DEVICE)
+                tensor = torch.tensor(rgb[None], dtype=torch.float32, device=DEVICE)
                 with torch.no_grad():
                     prob = model(tensor).squeeze().item()
                 
